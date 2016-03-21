@@ -32,11 +32,13 @@
     "gulp-babel": "^6.1.2",
     "gulp-jscs": "^3.0.2",
     "gulp-jshint": "^2.0.0",
+    "gulp-mocha": "^2.2.0",
     "gulp-util": "^3.0.7",
     "jscs": "^2.11.0",
     "jshint": "^2.9.1",
     "jshint-stylish": "^2.1.0",
     "map-stream": "0.0.6",
+    "should": "^8.2.2",
     "vinyl-source-stream": "^1.1.0",
     "watchify": "^3.7.0"
   }

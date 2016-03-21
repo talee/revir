@@ -7,6 +7,7 @@ import gutil from 'gulp-util'
 import jscs from 'gulp-jscs'
 import jshint from 'gulp-jshint'
 import map from 'map-stream'
+import mocha from 'gulp-mocha'
 import source from 'vinyl-source-stream'
 import watchify from 'watchify'
 
@@ -20,9 +21,10 @@ const tasks = {
     // Only compile bundle if file passes lint
     if (fileIds && fileIds.length) {
       gutil.log('Files changed:', fileIds)
-      return tasks.lintGiven(fileIds)
+      return tasks._lintGiven(fileIds)
         .pipe(map((file, done) => {
           if (file.jshint.success) {
+            tasks.test()
             tasks.browserify().on('end', done)
           } else {
             // watchify requires bundle to be called before another update event
@@ -33,6 +35,7 @@ const tasks = {
           }
         }))
     } else {
+      tasks.test()
       return tasks.browserify()
     }
   },
@@ -62,7 +65,7 @@ const tasks = {
 
   copy() {
     // Copy test page to dist
-    return gulp.src('test/index.html')
+    return gulp.src('tests/index.html')
     .pipe(gulp.dest('dist/'))
   },
 
@@ -70,7 +73,7 @@ const tasks = {
     return del('dist/')
   },
 
-  lintGiven(fileIds) {
+  _lintGiven(fileIds) {
     fileIds = fileIds.filter(file => file.endsWith('.js'))
     return gulp.src(fileIds)
       .pipe(jshint())
@@ -90,13 +93,35 @@ const tasks = {
       .pipe(jscs())
       .pipe(jscs.reporter())
       .pipe(jscs.reporter('fail'))
+  },
+
+  test() {
+    // No need to read file contents as mocha needs file paths only
+    return gulp.src('tests/*.js', {read: false})
+    .pipe(mocha())
   }
 }
 
 // ----------------------------------------
 // GULP TASKS
 // ----------------------------------------
+Object.keys(tasks)
+  .filter(key => !key.startsWith('_'))
+  .forEach(key => {
+    const fn = tasks[key].bind(tasks)
+    tasks[key] = () => {
+      gutil.log(`--> '${key}'`)
+      const result = fn()
+      if (result && result.on) {
+        return result.on('end', () => gutil.log(`<-- '${key}'`))
+      }
+      return result
+    }
+    gulp.task(key, () => tasks[key]())
+  })
+
 gulp.task('default', () => {
+  gulp.watch('tests/*.js', ['test'])
   tasks.clean().then(() => {
     tasks.copy()
     tasks.bundle()
@@ -104,11 +129,6 @@ gulp.task('default', () => {
   })
   gutil.log('Watching for changes...')
 })
-gulp.task('bundle', () => tasks.bundle())
-gulp.task('clean', () => tasks.clean())
-gulp.task('copy', () => tasks.copy())
-gulp.task('lintjs', () => tasks.lintjs())
-gulp.task('browserSync', () => tasks.browserSync())
 
 // ----------------------------------------
 // BROWSERIFY CONFIG
