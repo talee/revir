@@ -1,0 +1,9 @@
+{
+	"preset": "google",
+	"requireCamelCaseOrUpperCaseIdentifiers": null,
+  "requireSemicolons": null,
+  "disallowSemicolons": true,
+  "jsDoc": {
+    "disallowNewlineAfterDescription": true
+  }
+}
