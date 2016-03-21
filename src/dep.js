@@ -1,4 +1,4 @@
-var dep = {
+export default {
   hello() {
     console.log('dep: Hello from a ES6 dependency!')
   },
@@ -7,4 +7,3 @@ var dep = {
     return 42
   }
 }
-export default dep

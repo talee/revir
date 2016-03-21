@@ -99,6 +99,8 @@ const tasks = {
     // No need to read file contents as mocha needs file paths only
     return gulp.src('tests/*.js', {read: false})
     .pipe(mocha())
+    // Gulp watch requires end event to prevent watch from ending process/task
+    .on('error', function(err) { this.emit('end') })
   }
 }
 
