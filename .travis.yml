@@ -1,8 +1,13 @@
+# Use container based architecture for caching
+sudo: false
 language: node_js
 node_js:
     - "stable"
-    - "0.10"
+    - "0.12"
     - "iojs"
-before_script:
-    - npm install -g gulp
-script: gulp build
+install:
+    - npm update
+script: node_modules/gulp/bin/gulp.js build
+cache:
+    directories:
+        - node_modules/
