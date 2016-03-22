@@ -121,7 +121,7 @@ const tasks = {
 // GULP TASKS
 // ----------------------------------------
 Object.keys(tasks)
-  .filter(key => !key.startsWith('_'))
+  .filter(key => key[0] !== '_')
   .forEach(key => {
     const fn = tasks[key].bind(tasks)
     tasks[key] = () => {
