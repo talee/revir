@@ -77,6 +77,12 @@ const tasks = {
     return del('dist/')
   },
 
+  die(errcode) {
+    errcode = typeof errcode !== 'undefined' ? errcode : 2
+    gutil.log(`Manual exit with error code ${errcode}...`)
+    process.exit(errcode)
+  },
+
   _lintGiven(fileIds) {
     fileIds = fileIds.filter(file => file.endsWith('.js'))
     return gulp.src(fileIds)
@@ -130,6 +136,7 @@ Object.keys(tasks)
   })
 
 gulp.task('default', () => {
+  bundler.plugin(watchify)
   gulp.watch('tests/*.js', ['test'])
   tasks.clean().then(() => {
     tasks.copy()
@@ -137,6 +144,11 @@ gulp.task('default', () => {
     tasks.browserSync()
   })
   gutil.log('Watching for changes...')
+})
+gulp.task('build', done => {
+  tasks.test().on('error', err => tasks.die(1))
+  tasks.lintjs().on('error', err => tasks.die(1))
+  tasks.browserify().on('error', err => tasks.die(1))
 })
 
 // ----------------------------------------
@@ -151,7 +163,6 @@ var bundler = browserify({
   // 'a' instead of import './a', we need to declare all paths where code may
   // live. Edit: paths doesn't help when multiple directories are invovled.
   //paths: ['src/', 'test/'],
-  plugin: [watchify],
   transform: [babelify]
 })
 // Update triggered from watchify

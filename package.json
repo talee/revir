@@ -2,7 +2,7 @@
   "name": "revir",
   "version": "0.0.1",
   "description": "Flow and view loader",
-  "main": "src/index.js",
+  "main": "src/main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -43,5 +43,9 @@
     "should": "^8.2.2",
     "vinyl-source-stream": "^1.1.0",
     "watchify": "^3.7.0"
+  },
+  "engines": {
+    "node": "^4.0.0",
+    "npm": "^3.8.0"
   }
 }
