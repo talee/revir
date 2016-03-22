@@ -1,10 +1,11 @@
 import should from 'should'
-import dep from '../src/dep'
+import Main from '../src/main'
 
 const expect = should
 
-describe('dep', function() {
-  it('has life answering 42', () => {
-    expect(dep.life()).be.exactly(42)
+describe('Main', function() {
+  it('should support _config', () => {
+    const main = new Main({yolo: 'nice'})
+    main._config.should.have.property('yolo')
   })
 })

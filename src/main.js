@@ -1,11 +1,8 @@
-import dep from 'dep'
-export default main
+import dep from './dep'
+import log from 'loglevel'
 
-var main = {
-  setup(config) {
-    console.log('main: config:', config)
+export default class {
+  constructor(config) {
+    this._config = config
   }
 }
-
-console.log('main: Loaded main file! Nice!')
-dep.hello()

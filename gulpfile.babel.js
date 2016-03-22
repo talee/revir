@@ -6,12 +6,16 @@ import gulp from 'gulp'
 import gutil from 'gulp-util'
 import jscs from 'gulp-jscs'
 import jshint from 'gulp-jshint'
+import log from 'loglevel'
 import map from 'map-stream'
 import mocha from 'gulp-mocha'
 import source from 'vinyl-source-stream'
 import watchify from 'watchify'
 
 const c = gutil.colors
+if (!gutil.env.production) {
+  log.setLevel('debug')
+}
 
 // ----------------------------------------
 // TASKS
@@ -100,7 +104,10 @@ const tasks = {
     return gulp.src('tests/*.js', {read: false})
     .pipe(mocha())
     // Gulp watch requires end event to prevent watch from ending process/task
-    .on('error', function(err) { this.emit('end') })
+    .on('error', function(err) {
+      gutil.log(c.red('Error: ') + c.yellow(err.message) + '\n' + err.stack)
+      this.emit('end')
+    })
   }
 }
 
@@ -142,14 +149,14 @@ var bundler = browserify({
   packageCache: {},
   // Browserify has issues with relative paths in ES6 modules. To allow import
   // 'a' instead of import './a', we need to declare all paths where code may
-  // live.
-  paths: ['src/'],
+  // live. Edit: paths doesn't help when multiple directories are invovled.
+  //paths: ['src/', 'test/'],
   plugin: [watchify],
   transform: [babelify]
 })
 // Update triggered from watchify
 .on('update', tasks.bundle)
-.on('log', msg => gutil.log(msg))
+.on('log', msg => gutil.log(`log: ${msg}`))
 .on('error', function(err) {
   gutil.log('Error: ' + err.message)
   browserSync.notify('Browserify Error!')
