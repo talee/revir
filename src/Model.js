@@ -26,14 +26,15 @@ export default class Model {
         },
         get() {
           // Proxy listener interface to subscribers
-          return {
-            subscribe() {
-              subject.subscribe(...arguments)
-            },
-            getValue() {
-              subject.getValue(...arguments)
-            }
+          const observable = subject.asObservable()
+          // Check in case subject interface changes in the future
+          if (observable.state !== undefined) {
+            throw new Error('Model - subject.state is already defined.')
           }
+          Object.defineProperty(observable, 'state', {
+            get: () => subject.getValue()
+          })
+          return observable
         },
       })
     })

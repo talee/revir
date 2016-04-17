@@ -16,11 +16,11 @@ describe('Model', function() {
     const newConfig = Object.freeze({start: 'New'})
     const initialConfig = Object.freeze({start: 'Initial'})
     const data = {config: initialConfig}
-    const dataStore = new Model(data)
+    const model = new Model(data)
 
     // Subscribe to when data.config is replaced
     let initialCall = true
-    const onEvent = spy(({value, prev}) => {
+    const onConfigReplace = spy(({value, prev}) => {
       value.should.eql(initialCall ? initialConfig : newConfig)
       if (initialCall) {
         should.equal(prev, undefined)
@@ -29,12 +29,17 @@ describe('Model', function() {
       }
       initialCall = false
     })
-    dataStore.config.subscribe(onEvent)
-    onEvent.should.be.calledOnce()
+    model.config.subscribe(onConfigReplace)
+    onConfigReplace.should.be.calledOnce()
 
     // Replace config to trigger new value event
-    dataStore.config = newConfig
-    onEvent.should.be.calledTwice()
+    model.config = newConfig
+    onConfigReplace.should.be.calledTwice()
+  })
+
+  it('should return a property value via model.key.state.value', () => {
+    const model = new Model({answer: 42})
+    model.answer.state.value.should.equal(42)
   })
 })
 
