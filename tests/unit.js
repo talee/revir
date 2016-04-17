@@ -3,7 +3,7 @@ import should from 'should'
 import {spy} from 'sinon'
 import 'should-sinon'
 
-//import Main from '../src/main'
+import Revir from '../src/Revir'
 import State from '../src/State'
 import states from './states'
 import Model from '../src/Model'
@@ -110,5 +110,15 @@ describe('Transitions', function() {
       nodeName.should.be.a.String()
       states.should.have.property(nodeName).which.is.an.Object()
     })
+  })
+})
+
+describe('Revir', function() {
+  it('exposes State interface with correct scope', () => {
+    const revir = new Revir({
+      states
+    })
+    should.equal(revir.transition('Run payroll'), undefined)
+    revir._states._inspectData().current.should.equal('RunPayroll')
   })
 })

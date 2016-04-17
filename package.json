@@ -1,8 +1,8 @@
 {
   "name": "revir",
-  "version": "0.0.1",
+  "version": "0.0.1-alpha.1",
   "description": "Flow and view loader",
-  "main": "src/main.js",
+  "main": "src/Revir.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

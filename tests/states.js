@@ -36,7 +36,7 @@ export default {
   AddEmployee: {
     transitions: {
       'Edit W-4': 'W4',
-      'View employee List': 'EmployeeList'
+      'View employee list': 'EmployeeList'
     }
   },
 
