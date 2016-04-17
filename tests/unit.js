@@ -44,28 +44,54 @@ describe('Model', function() {
 })
 
 describe('State', function() {
-  it('should save nodes', () => {
-    const state = new State()
-    state.create({
+  var state
+  beforeEach(() => {
+    state = State.create({
       nodes: states
     })
+  })
+
+  it('should save nodes', () => {
     state._inspectData().nodes.should.eql(states)
   })
 
   it('should set current state to the start node of the given nodes', () => {
-    const state = new State()
-    state.create({
-      nodes: states
-    })
     state._inspectData().current.should.eql(states.start)
   })
-})
 
-/*
-describe('Main', function() {
-  it('should support _config', () => {
-    const main = new Main({yolo: 'nice'})
-    main._config.should.have.property('yolo')
+  it('replacing with new nodes should update internal nodes', () => {
+    const expectedNodes = {
+      start: 'NewStart',
+      NewStart: {}
+    }
+    state.replace(expectedNodes)
+    state._inspectData().nodes.should.equal(expectedNodes)
+    state._inspectData().current.should.not.equal(expectedNodes.start)
+  })
+
+  it('transitions to next state', () => {
+    should.equal(state.transition('Run payroll'), undefined)
+    state._inspectData().current.should.equal('RunPayroll')
+  })
+
+  it('transitions to previous state when no transitions are defined on a node',
+  () => {
+    state.transition('Run payroll')
+    state.transition()
+    state._inspectData().current.should.equal('EmployeeList')
+  })
+
+  it('transitions to previous state multiple times',
+  () => {
+    const data = state._inspectData()
+    state.transition('Add employee')
+    state.transition('Edit W-4')
+    data.current.should.equal('W4')
+
+    state.previous()
+    data.current.should.equal('AddEmployee')
+    state.previous()
+    data.current.should.equal('EmployeeList')
   })
 })
 
@@ -86,22 +112,3 @@ describe('Transitions', function() {
     })
   })
 })
-
-describe('State', function() {
-  var state
-  beforeEach(() => {
-    state = new State(states)
-  })
-
-  it('transitions to next state', () => {
-    state.next('Run payroll').should.eql(state._nodes.RunPayroll)
-    state._current.should.equal(state._nodes.RunPayroll)
-  })
-
-  it('transitions to previous state when no transitions are defined on a node',
-  () => {
-    state.next('Run payroll')
-    state.next().should.eql(state._nodes.EmployeeList)
-  })
-})
-*/

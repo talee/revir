@@ -29,13 +29,13 @@ export default class Model {
           const observable = subject.asObservable()
           // Check in case subject interface changes in the future
           if (observable.state !== undefined) {
-            throw new Error('Model - subject.state is already defined.')
+            throw new Error('Model: subject.state is already defined.')
           }
           Object.defineProperty(observable, 'state', {
             get: () => subject.getValue()
           })
           return observable
-        },
+        }
       })
     })
   }

@@ -10,48 +10,95 @@ export default class State {
    * @param {object} stateConfig contains flow nodes
    * @return {object} interface of observerables
    */
-  create(sources) {
+  static create(sources) {
     //const driver = new StateDriver()
     //const sink = new StateSink()
 
     // Create new data store. Not exposed.
     const data = {
+      // Last transition received
+      transition: null,
+      // Current node name
       current: null,
+      // Complete graph of states
       nodes: null,
-      previous: null
+      // Previous states
+      history: []
     }
-    // Expose data for testing
-    this._inspectData = () => data
-
     // Broadcasts when data properties are updated
     const dataSource = new Model(data)
 
     // Save data from external sources
     for (var key in data) {
-      dataSource[key] = sources[key]
+      if (sources[key]) {
+        dataSource[key] = sources[key]
+      }
     }
 
-    // Parse and save starting node from data source the first time
-    const saveStartNode$ = dataSource.nodes
+    const saveStartNode = dataSource.nodes
       .map(({value}) => value.start)
       .map(current => dataSource.current = current)
-      .first()
 
-    saveStartNode$.subscribe()
+    const validateTransition = changeEvent => {
+      const transition = changeEvent.value
+      const transitions = data.nodes[data.current].transitions
+      if (!transitions) {
+        if (transition) {
+          throw new Error(`State: No transitions found for '${transition}' at` +
+                          ` current state ${data.current}`)
+        } else {
+          // Transition back in history as the current node is an end node
+          return {transition, forward: false}
+        }
+      }
+      const nodeName = transitions[transition]
+      if (!nodeName) {
+        throw new Error(`State: Transition '${transition}' not available at ` +
+                        `current state '${data.current}'`)
+      }
+      if (!data.nodes[nodeName]) {
+        throw new Error(`State: Node '${nodeName}' not found on transition ` +
+                        `'${transition}' at current state '${data.current}'`)
+      }
+      return {transition, forward: true}
+    }
+
+    // Skip initial undefined transition value
+    const updateCurrentNodeOnTransition = dataSource.transition
+      .skip(1)
+      .map(validateTransition)
+      .map(({transition, forward}) => {
+        if (forward) {
+          data.history.push(data.current)
+          data.current = data.nodes[data.current].transitions[transition]
+        } else {
+          data.current = data.history.pop()
+        }
+      })
+
+    // Parse and save starting node from data source only once
+    saveStartNode.first().subscribe()
+    updateCurrentNodeOnTransition.subscribe()
 
     return {
+      /**
+       * Expose data for testing
+       * @return {object} internal data
+       */
+      _inspectData: () => data,
+
       /**
        * Transition current state to next node using given transition.
        * @param {string} transition name of transition to use on the current
        * node
-       * @return {Rx.Observable} stream to receive transition outcome
+       * @return {object} flow outcome if any exist, otherwise undefined
        */
-      transition: transition => new Error('Implement'),
+      transition: transition => {dataSource.transition = transition},
 
       /**
        * Transition to the previous state.
        */
-      previous: () => new Error('Implement'),
+      previous: () => data.current = data.history.pop(),
 
       /**
        * Replace the current nodes set with the new nodes object.
