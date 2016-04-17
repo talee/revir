@@ -95,7 +95,8 @@ const tasks = {
   lintjs() {
     return gulp.src([
         'gulpfile.babel.js',
-        'src/**/*.js'
+        'src/**/*.js',
+        'tests/**/*.js'
       ])
       .pipe(jshint())
       .pipe(jshint.reporter('jshint-stylish'))
@@ -149,6 +150,15 @@ gulp.task('build', done => {
   tasks.test().on('error', err => tasks.die(1))
   tasks.lintjs().on('error', err => tasks.die(1))
   tasks.browserify().on('error', err => tasks.die(1))
+})
+
+gulp.task('test-watch', function() {
+  tasks.lintjs().on('error', () => {
+    this.emit('end')
+  }).on('end', () => {
+    tasks.test()
+  })
+  gulp.watch(['src/**/*.js', 'tests/**/*.js'], ['lintjs', 'test'])
 })
 
 // ----------------------------------------
