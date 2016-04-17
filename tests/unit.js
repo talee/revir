@@ -4,8 +4,8 @@ import {spy} from 'sinon'
 import 'should-sinon'
 
 //import Main from '../src/main'
-//import State from '../src/State'
-//import states from './states'
+import State from '../src/State'
+import states from './states'
 import Model from '../src/Model'
 
 const expect = should
@@ -43,9 +43,7 @@ describe('Model', function() {
   })
 })
 
-/*
 describe('State', function() {
-  this.timeout(1000)
   it('should save nodes', () => {
     const state = new State()
     state.create({
@@ -53,8 +51,15 @@ describe('State', function() {
     })
     state._inspectData().nodes.should.eql(states)
   })
+
+  it('should set current state to the start node of the given nodes', () => {
+    const state = new State()
+    state.create({
+      nodes: states
+    })
+    state._inspectData().current.should.eql(states.start)
+  })
 })
-*/
 
 /*
 describe('Main', function() {
