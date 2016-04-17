@@ -167,7 +167,7 @@ gulp.task('test-watch', function() {
 var bundler = browserify({
   cache: {},
   debug: true,
-  entries: ['src/main.js'],
+  entries: ['src/Revir.js'],
   packageCache: {},
   // Browserify has issues with relative paths in ES6 modules. To allow import
   // 'a' instead of import './a', we need to declare all paths where code may
