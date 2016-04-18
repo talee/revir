@@ -74,6 +74,12 @@ describe('State', function() {
     state._inspectData().current.should.equal('RunPayroll')
   })
 
+  it('transitions to next state via transition reference string', () => {
+    state._inspectData().current = 'EditEmployee'
+    state.transition('Edit W-4')
+    state._inspectData().current.should.equal('W4')
+  })
+
   it('transitions to previous state when no transitions are defined on a node',
   () => {
     state.transition('Run payroll')
@@ -81,8 +87,7 @@ describe('State', function() {
     state._inspectData().current.should.equal('EmployeeList')
   })
 
-  it('transitions to previous state multiple times',
-  () => {
+  it('transitions to previous state multiple times', () => {
     const data = state._inspectData()
     state.transition('Add employee')
     state.transition('Edit W-4')
@@ -92,6 +97,12 @@ describe('State', function() {
     data.current.should.equal('AddEmployee')
     state.previous()
     data.current.should.equal('EmployeeList')
+  })
+
+  it('should not transition to previous state when no history exists', () => {
+    state._inspectData().current.should.equal('EmployeeList')
+    state.previous()
+    state._inspectData().current.should.equal('EmployeeList')
   })
 })
 
@@ -110,6 +121,12 @@ describe('Transitions', function() {
       nodeName.should.be.a.String()
       states.should.have.property(nodeName).which.is.an.Object()
     })
+  })
+
+  it(`can reference another node's transitions`, () => {
+    let transitionReference = states.EditEmployee.transitions
+    transitionReference.should.be.a.String()
+    states[transitionReference].should.eql(states.AddEmployee)
   })
 })
 

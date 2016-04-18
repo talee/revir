@@ -41,15 +41,20 @@ export default class State {
 
     const validateTransition = changeEvent => {
       const transition = changeEvent.value
-      const transitions = data.nodes[data.current].transitions
+      let transitions = data.nodes[data.current].transitions
       if (!transitions) {
         if (transition) {
-          throw new Error(`State: No transitions found for '${transition}' at` +
-                          ` current state ${data.current}`)
+          throw new Error(`State: No transitions on current state ` +
+                          `${data.current}. Transition given: '${transition}'`)
         } else {
           // Transition back in history as the current node is an end node
-          return {transition, forward: false}
+          return {transition, transitions, forward: false}
         }
+      }
+      // Allow transition reference string to link to another node's transitions
+      if (typeof transitions == 'string') {
+        const reference = transitions
+        transitions = data.nodes[reference].transitions
       }
       const nodeName = transitions[transition]
       if (!nodeName) {
@@ -60,19 +65,23 @@ export default class State {
         throw new Error(`State: Node '${nodeName}' not found on transition ` +
                         `'${transition}' at current state '${data.current}'`)
       }
-      return {transition, forward: true}
+      return {transition, transitions, forward: true}
+    }
+
+    const transitionToPreviousState = () => {
+      data.current = data.history.pop() || data.current
     }
 
     // Skip initial undefined transition value
     const updateCurrentNodeOnTransition = dataSource.transition
       .skip(1)
       .map(validateTransition)
-      .map(({transition, forward}) => {
+      .map(({transition, transitions, forward}) => {
         if (forward) {
           data.history.push(data.current)
-          data.current = data.nodes[data.current].transitions[transition]
+          data.current = transitions[transition]
         } else {
-          data.current = data.history.pop()
+          transitionToPreviousState()
         }
       })
 
@@ -98,7 +107,7 @@ export default class State {
       /**
        * Transition to the previous state.
        */
-      previous: () => data.current = data.history.pop(),
+      previous: transitionToPreviousState,
 
       /**
        * Replace the current nodes set with the new nodes object.
