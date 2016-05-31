@@ -11,7 +11,8 @@ import Model from '../src/Model'
 const expect = should
 
 describe('Model', function() {
-  this.timeout(100)
+  //this.timeout(100)
+  this.timeout(0)
   it('should notify subscribers of changes to its properties', () => {
     const newConfig = Object.freeze({start: 'New'})
     const initialConfig = Object.freeze({start: 'Initial'})
@@ -44,6 +45,7 @@ describe('Model', function() {
 })
 
 describe('State', function() {
+  this.timeout(0)
   var state
   beforeEach(() => {
     state = State.create({
@@ -75,7 +77,7 @@ describe('State', function() {
   })
 
   it('transitions to next state via transition reference string', () => {
-    state._inspectData().current = 'EditEmployee'
+    state._current('EditEmployee')
     state.transition('Edit W-4')
     state._inspectData().current.should.equal('W4')
   })

@@ -21,6 +21,10 @@ export default class Model {
         enumerable: true,
         set(value) {
           const prev = data[key]
+          // Prevent infinite event loop
+          if (prev === value) {
+            return
+          }
           data[key] = value
           subject.next({value, prev, key})
         },

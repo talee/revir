@@ -1,21 +1,21 @@
-import log from 'loglevel'
 import Rx from 'rxjs/Rx'
+import log from 'loglevel'
+
 import Model from './Model'
+import makeObjectDriver from './ObjectDriver'
 
 /**
  * Main public API. Binds driver and sink together.
  */
 export default class State {
   /**
-   * @param {object} stateConfig contains flow nodes
+   * @param {object} sources contains flow nodes
    * @return {object} interface of observerables
    */
   static create(sources) {
-    //const driver = new StateDriver()
-    //const sink = new StateSink()
-
+    // TODO: Directly pass to makeObjectDriver to prevent exposing.
     // Create new data store. Not exposed.
-    const data = {
+    const dataStore = {
       // Last transition received
       transition: null,
       // Current node name
@@ -25,76 +25,32 @@ export default class State {
       // Previous states
       history: []
     }
-    // Broadcasts when data properties are updated
-    const dataSource = new Model(data)
-
-    // Save data from external sources
-    for (var key in data) {
-      if (sources[key]) {
-        dataSource[key] = sources[key]
-      }
+    // Stream of external API call events
+    const externalCalls = new Rx.Subject()
+    const drivers = {
+      Object: makeObjectDriver(dataStore, sources)
     }
+    // Starts drivers.Object with empty argument
+    const actions = intent(drivers.Object(), externalCalls.asObservable())
+    const state$ = model(actions)
 
-    const saveStartNode = dataSource.nodes
-      .map(({value}) => value.start)
-      .map(current => dataSource.current = current)
-
-    const validateTransition = changeEvent => {
-      const transition = changeEvent.value
-      let transitions = data.nodes[data.current].transitions
-      if (!transitions) {
-        if (transition) {
-          throw new Error(`State: No transitions on current state ` +
-                          `${data.current}. Transition given: '${transition}'`)
-        } else {
-          // Transition back in history as the current node is an end node
-          return {transition, transitions, forward: false}
-        }
-      }
-      // Allow transition reference string to link to another node's transitions
-      if (typeof transitions == 'string') {
-        const reference = transitions
-        transitions = data.nodes[reference].transitions
-      }
-      const nodeName = transitions[transition]
-      if (!nodeName) {
-        throw new Error(`State: Transition '${transition}' not available at ` +
-                        `current state '${data.current}'`)
-      }
-      if (!data.nodes[nodeName]) {
-        throw new Error(`State: Node '${nodeName}' not found on transition ` +
-                        `'${transition}' at current state '${data.current}'`)
-      }
-      return {transition, transitions, forward: true}
-    }
-
-    const transitionToPreviousState = () => {
-      data.current = data.history.pop() || data.current
-    }
-
-    // Skip initial undefined transition value
-    const updateCurrentNodeOnTransition = dataSource.transition
-      .skip(1)
-      .map(validateTransition)
-      .map(({transition, transitions, forward}) => {
-        if (forward) {
-          data.history.push(data.current)
-          data.current = transitions[transition]
-        } else {
-          transitionToPreviousState()
-        }
-      })
-
-    // Parse and save starting node from data source only once
-    saveStartNode.first().subscribe()
-    updateCurrentNodeOnTransition.subscribe()
+    // Subscribes drivers to sinks
+    link(drivers, {Object: state$})
 
     return {
       /**
        * Expose data for testing
        * @return {object} internal data
        */
-      _inspectData: () => data,
+      _inspectData: () => dataStore,
+
+      /**
+       * Support jumps for testing.
+       */
+      _current: current => externalCalls.next({
+        key: 'current',
+        value: current,
+      }),
 
       /**
        * Transition current state to next node using given transition.
@@ -102,144 +58,142 @@ export default class State {
        * node
        * @return {object} flow outcome if any exist, otherwise undefined
        */
-      transition: transition => {dataSource.transition = transition},
+      transition: transition => externalCalls.next({
+        key: 'transition',
+        value: transition
+      }),
 
       /**
        * Transition to the previous state.
        */
-      previous: transitionToPreviousState,
+      previous: () => externalCalls.next({
+        key: 'previous'
+      }),
 
       /**
        * Replace the current nodes set with the new nodes object.
        * @param {object} nodes New nodes to use
        */
-      replace: nodes => dataSource.nodes = nodes
+      replace: nodes => externalCalls.next({
+        key: 'replace',
+        value: nodes
+      })
     }
-    // map external data -> data store
-    // map data store change intent -> action
-    // map action side effects -> data store
-
-    // map external state config
-    //    -> data store
-    //    -> side effect -> save state config to data store
-    //
-    //    state = new State(config)
-    //    const model = new Model({
-    //      data keys
-    //    })
-    //    model.nodes.subscribe()
-    //
-    //
-    // map data store state config change
-    //    -> action: extract model info from data store to initialize state
-    //    -> side effect -> none
-    //
-    // map action to extract model info and data store (source)
-    //    -> model representing initial state/pointers
-    //    -> side effect -> none
-    //
-    // map model
-    //    -> data store
-    //    -> side effect -> save model to data store
-
-    // External passes in:
-    // object of public actions each mapped to an Observable that provides
-    // events e.g. {
-    //   config: stateConfig$  // Stream of state configs
-    //   next: transition$     // Stream of transitions
-    // }
-    // Potentially if people don't want to use streams, we could create streams
-    // for them to use...
-    //
-    // Driver maps each source to the corresponding stream handler to turn into
-    // a model
-    //
-
-    // Data store emits change events
-    //const actions = intent(sources)
-    //const state$ = model(actions)
-
-    // Saves next nodes to data store
   }
 }
 
-// Driver
-function intent(sources) {
-  // actions
+const transitionToPreviousState = ({current, history}) => {
+  return ({current: history.pop() || current})
+}
+
+// Translate external data source inputs/events to actions on our models
+function intent(dataSource, externalCall) {
   return {
-    // Saves config
-    config: sources.config,
-    // transition, meta => change data store
-    next: sources.next,
-    // meta => change data source
-    previous: sources.previous
+    saveStartNode: dataSource.get('nodes')
+      .map(({value}) => ({current: value.start}))
+      .first(),
+
+    saveTransition: externalCall.filter(({key}) => key == 'transition')
+      .map(mapValueStateToValue),
+
+    previous: externalCall.filter(({key}) => key == 'previous')
+      .map(() => ({}))
+      .mergeMap(willMergeDependencies(dataSource, 'current history'))
+      .map(transitionToPreviousState),
+
+    _saveCurrent: externalCall.filter(({key}) => key == 'current')
+      .map(mapValueStateToValue),
+
+    saveNodes: externalCall.filter(({key}) => key == 'replace')
+      .map(({value}) => ({nodes: value})),
+
+    // Skip initial undefined transition value
+    updateCurrentNodeOnTransition: dataSource.get('transition')
+      .skip(1)
+      .map(transition => mapToValues({transition}))
+      .mergeMap(willMergeDependencies(dataSource, 'current nodes'))
+      .map(validateAndSelectTransition)
+      .mergeMap(willMergeDependencies(dataSource, 'current history'))
+      .map(({transition, transitions, forward, history, current}) => {
+        if (forward) {
+          // TODO: Potentially avoid history modification at this step?
+          history.push(current)
+          current = transitions[transition]
+          return {history, current}
+        } else {
+          return transitionToPreviousState({current, history})
+        }
+      })
   }
 }
 
-// Return streams of results for each action
+// Link each driver setup with actions back to each driver's sink.
+const link = (drivers, sinks) => {
+  for (const key in drivers) {
+    sinks[key].subscribe(dataOutput => {
+      drivers[key](dataOutput)
+    })
+  }
+}
+
+const mapToValues = modelValuesMap => {
+  let result = {}
+  for (const state of Object.values(modelValuesMap)) {
+    result[state.key] = state.value
+  }
+  return result
+}
+
+const mapValueStateToValue = state => ({[state.key]: state.value})
+
+/**
+ * @return {function(object)} Callback maps current model dependencies to a
+ * regular key-value map (discards state metadata)
+ */
+const willMergeDependencies = (dataSource, dependencies) =>
+  // Output is the item emitted by an Observable
+  output => dataSource.current(dependencies)
+    .map(modelValuesMap => {
+      return Object.assign(output, mapToValues(modelValuesMap))
+    })
+
+const validateAndSelectTransition = ({transition, current, nodes}) => {
+  let transitions = nodes[current].transitions
+  if (!transitions) {
+    if (transition) {
+      throw new Error(`State: No transitions on current state ` +
+                      `${current}. Transition given: '${transition}'`)
+    } else {
+      // Transition back in history as the current node is an end node
+      return {transition, transitions, forward: false}
+    }
+  }
+  // Allow transition reference string to link to another node's transitions
+  if (typeof transitions == 'string') {
+    const reference = transitions
+    transitions = nodes[reference].transitions
+  }
+  const nodeName = transitions[transition]
+  if (!nodeName) {
+    throw new Error(`State: Transition '${transition}' not available at ` +
+                    `current state '${current}'`)
+  }
+  if (!nodes[nodeName]) {
+    throw new Error(`State: Node '${nodeName}' not found on transition ` +
+                    `'${transition}' at current state '${current}'`)
+  }
+  return {transition, transitions, forward: true}
+}
+
+// Returns resulting state from actions.
 function model(actions) {
-  return {
-    // TODO: Maybe one model per action?
-    // Provides config to data store
-    config: actions.config.map(config => {
-      // Validate config
-    }),
-    // Transform transition name to node name
-  }
+  return Rx.Observable.merge(
+    ...Object.values(actions)
+  )
 }
 
 function dataStore(model$) {
   // Save model data back to data store, which feeds back as a source
-}
-
-/**
- * Stateless handling of events from sources.
- */
-export class StateDriver {
-  constructor(stateConfig) {
-    this._nodes = stateConfig
-    this._previous = null
-    this._current = this._nodes[this._nodes.start]
-    this._updateCurrentName(this._nodes.start)
-  }
-
-  /**
-   * Transition current state to next node using given transition.
-   * @param {string} transition name of transition to use on the current node
-   * @return {object} cloned state
-   */
-  next(transition) {
-    const transitions = this._current.transitions
-    if (!transitions) {
-      log.debug('No transitions in current node.')
-    }
-
-    const nextNodeName = transitions[transition]
-    if (!nextNodeName) {
-      let err = new Error(`No '${transition}' transition found at current ` +
-                          `state '${this._current._name}'`)
-      log.error(err.message)
-      throw err
-    }
-
-    const nextNode = this._nodes[nextNodeName]
-    if (!nextNode) {
-      let err = new Error(`No '${nextNodeName}' state available to ` +
-                          `transition to.`)
-      log.error(err)
-      throw err
-    }
-
-    this._previous = this._current
-    this._current = this._nodes[nextNodeName]
-    this._updateCurrentName(nextNodeName)
-    return Object.assign({}, this._current)
-  }
-
-  // For debugging current node
-  _updateCurrentName(name) {
-    this._current._name = name
-  }
 }
 
 export class StateSink {
@@ -250,3 +204,48 @@ export class Validator {
   constructor(stateConfig) {
   }
 }
+// map external data -> data store
+// map data store change intent -> action
+// map action side effects -> data store
+
+// map external state config
+//    -> data store
+//    -> side effect -> save state config to data store
+//
+//    state = new State(config)
+//    const model = new Model({
+//      data keys
+//    })
+//    model.nodes.subscribe()
+//
+//
+// map data store state config change
+//    -> action: extract model info from data store to initialize state
+//    -> side effect -> none
+//
+// map action to extract model info and data store (source)
+//    -> model representing initial state/pointers
+//    -> side effect -> none
+//
+// map model
+//    -> data store
+//    -> side effect -> save model to data store
+
+// External passes in:
+// object of public actions each mapped to an Observable that provides
+// events e.g. {
+//   config: stateConfig$  // Stream of state configs
+//   next: transition$     // Stream of transitions
+// }
+// Potentially if people don't want to use streams, we could create streams
+// for them to use...
+//
+// Driver maps each source to the corresponding stream handler to turn into
+// a model
+//
+
+// Data store emits change events
+//const actions = intent(sources)
+//const state$ = model(actions)
+
+// Saves next nodes to data store
