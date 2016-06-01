@@ -1,4 +1,6 @@
-import Rx from 'rxjs/Rx'
+import {Observable} from 'rxjs/Observable'
+import 'rxjs/add/observable/combineLatest'
+import 'rxjs/add/observable/of'
 
 import Model from './Model'
 
@@ -29,7 +31,7 @@ export default function makeObjectDriver(dataStore, dataSource) {
         for (let key of keys) {
           observables.push(model[key])
         }
-        return Rx.Observable.combineLatest(...observables, function() {
+        return Observable.combineLatest(...observables, function() {
           if (arguments.length === 1) {
             return arguments[0]
           }
@@ -46,7 +48,7 @@ export default function makeObjectDriver(dataStore, dataSource) {
         for (let key of keys.split(' ')) {
           result[key] = model[key].state
         }
-        return Rx.Observable.of(result)
+        return Observable.of(result)
       }
     }
   }

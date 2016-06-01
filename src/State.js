@@ -1,5 +1,12 @@
-import Rx from 'rxjs/Rx'
-import log from 'loglevel'
+import {Observable} from 'rxjs/Observable'
+import {Subject} from 'rxjs/Subject'
+import 'rxjs/add/observable/merge'
+import 'rxjs/add/operator/map'
+import 'rxjs/add/operator/first'
+import 'rxjs/add/operator/filter'
+import 'rxjs/add/operator/mergeMap'
+import 'rxjs/add/operator/skip'
+import values from 'core-js/library/fn/object/values'
 
 import Model from './Model'
 import makeObjectDriver from './ObjectDriver'
@@ -26,7 +33,7 @@ export default class State {
       history: []
     }
     // Stream of external API call events
-    const externalCalls = new Rx.Subject()
+    const externalCalls = new Subject()
     const drivers = {
       Object: makeObjectDriver(dataStore, sources)
     }
@@ -138,7 +145,7 @@ const link = (drivers, sinks) => {
 
 const mapToValues = modelValuesMap => {
   let result = {}
-  for (const state of Object.values(modelValuesMap)) {
+  for (const state of Object::values(modelValuesMap)) {
     result[state.key] = state.value
   }
   return result
@@ -187,8 +194,8 @@ const validateAndSelectTransition = ({transition, current, nodes}) => {
 
 // Returns resulting state from actions.
 function model(actions) {
-  return Rx.Observable.merge(
-    ...Object.values(actions)
+  return Observable.merge(
+    ...Object::values(actions)
   )
 }
 

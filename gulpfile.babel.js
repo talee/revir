@@ -1,11 +1,10 @@
 import babelify from 'babelify'
 import browserSync from 'browser-sync'
 import browserify from 'browserify'
+import eslint from 'gulp-eslint'
 import del from 'del'
 import gulp from 'gulp'
 import gutil from 'gulp-util'
-import jscs from 'gulp-jscs'
-import jshint from 'gulp-jshint'
 import log from 'loglevel'
 import map from 'map-stream'
 import mocha from 'gulp-mocha'
@@ -27,16 +26,16 @@ const tasks = {
       gutil.log('Files changed:', fileIds)
       return tasks._lintGiven(fileIds)
         .pipe(map((file, done) => {
-          if (file.jshint.success) {
-            tasks.test()
-            tasks.browserify().on('end', done)
-          } else {
-            // watchify requires bundle to be called before another update event
-            // can be emitted. The stream from bundle must also be consumed.
-            gutil.log('Noop bundling.')
-            bundler.bundle().pipe(gutil.noop())
-            done()
-          }
+          // TODO: Continue only if lint has no errors
+          tasks.test()
+          tasks.browserify().on('end', done)
+          //} else {
+          //  // watchify requires bundle to be called before another update event
+          //  // can be emitted. The stream from bundle must also be consumed.
+          //  gutil.log('Noop bundling.')
+          //  bundler.bundle().pipe(gutil.noop())
+          //  done()
+          //}
         }))
     } else {
       tasks.test()
@@ -86,10 +85,9 @@ const tasks = {
   _lintGiven(fileIds) {
     fileIds = fileIds.filter(file => file.endsWith('.js'))
     return gulp.src(fileIds)
-      .pipe(jshint())
-      .pipe(jshint.reporter('jshint-stylish'))
-      .pipe(jscs())
-      .pipe(jscs.reporter())
+      .pipe(eslint())
+      .pipe(eslint.format())
+      .pipe(eslint.failAfterError())
   },
 
   lintjs() {
@@ -98,12 +96,9 @@ const tasks = {
         'src/**/*.js',
         'tests/**/*.js'
       ])
-      .pipe(jshint())
-      .pipe(jshint.reporter('jshint-stylish'))
-      .pipe(jshint.reporter('fail'))
-      .pipe(jscs())
-      .pipe(jscs.reporter())
-      .pipe(jscs.reporter('fail'))
+      .pipe(eslint())
+      .pipe(eslint.format())
+      .pipe(eslint.failAfterError())
   },
 
   test() {

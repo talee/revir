@@ -1,4 +1,4 @@
-import Rx from 'rxjs/Rx'
+import {BehaviorSubject} from 'rxjs/BehaviorSubject'
 
 /**
  * Emit newly set properties on subscribed property data streams
@@ -12,7 +12,7 @@ export default class Model {
   constructor(data) {
     Object.keys(data).forEach(key => {
       // Emits current value on subscription
-      const subject = new Rx.BehaviorSubject({
+      const subject = new BehaviorSubject({
         value: data[key],
         prev: undefined,
         key

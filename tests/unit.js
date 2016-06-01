@@ -1,4 +1,3 @@
-import Rx from 'rxjs/Rx'
 import should from 'should'
 import {spy} from 'sinon'
 import 'should-sinon'
@@ -11,8 +10,6 @@ import Model from '../src/Model'
 const expect = should
 
 describe('Model', function() {
-  //this.timeout(100)
-  this.timeout(0)
   it('should notify subscribers of changes to its properties', () => {
     const newConfig = Object.freeze({start: 'New'})
     const initialConfig = Object.freeze({start: 'Initial'})
@@ -45,7 +42,6 @@ describe('Model', function() {
 })
 
 describe('State', function() {
-  this.timeout(0)
   var state
   beforeEach(() => {
     state = State.create({
