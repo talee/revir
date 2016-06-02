@@ -107,7 +107,8 @@ const tasks = {
     .pipe(mocha())
     // Gulp watch requires end event to prevent watch from ending process/task
     .on('error', function(err) {
-      gutil.log(c.red('Error: ') + c.yellow(err.message) + '\n' + err.stack)
+      var stack = err.stack ? '\n' + err.stack : ''
+      gutil.log(c.red('Error: ') + c.yellow(err.message) + stack)
       this.emit('end')
     })
   }
