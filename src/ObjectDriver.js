@@ -20,7 +20,7 @@ export default function makeObjectDriver(dataStore, dataSource) {
   return function objectDriver(newObject) {
     // If internally changed, save directly to dataStore to prevent infinite
     // loop of events.
-    Object.assign(model, newObject)
+    model.commit(newObject)
     return {
       get(keys) {
         if (!keys) {

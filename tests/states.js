@@ -1,3 +1,10 @@
+// TODO: Polyfill Promise to allow older clients
+function RunPayrollResolver() {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => resolve('Ready'), 2)
+  })
+}
+
 export default {
   // Which node to start at
   start: 'EmployeeList',
@@ -19,6 +26,13 @@ export default {
   //   transitions: 'node name. refers to same transitions as in given node'
   // }
   //
+  // 'node name': {
+  //   ...
+  //   resolver: function() {return Promise.resolve('transition name')}
+  //   props: {...}
+  //   transitions: {...}
+  // }
+  //
   // ... to n nodes etc.
   //
   // Missing transitions object indicates this is an end node of a flow. Next
@@ -29,7 +43,8 @@ export default {
     transitions: {
       'Add employee': 'AddEmployee',
       'Edit employee': 'EditEmployee',
-      'Run payroll': 'RunPayroll'
+      'Run payroll': 'RunPayroll',
+      'Enter run payroll': 'EnterRunPayroll'
     },
   },
 
@@ -47,6 +62,17 @@ export default {
   W4: {
   },
 
+  EnterRunPayroll: {
+    resolver: RunPayrollResolver,
+    transitions: {
+      'No employees': 'AddEmployee',
+      'Ready': 'RunPayroll'
+    }
+  },
+
   RunPayroll: {
+    props: {
+      layout: 'trowser'
+    }
   }
 }

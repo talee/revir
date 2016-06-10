@@ -1,10 +1,13 @@
 import {Observable} from 'rxjs/Observable'
 import {Subject} from 'rxjs/Subject'
+import 'rxjs/add/observable/fromPromise'
 import 'rxjs/add/observable/merge'
+import 'rxjs/add/operator/do'
 import 'rxjs/add/operator/map'
 import 'rxjs/add/operator/first'
 import 'rxjs/add/operator/filter'
 import 'rxjs/add/operator/mergeMap'
+import 'rxjs/add/operator/single'
 import 'rxjs/add/operator/skip'
 import values from 'core-js/library/fn/object/values'
 
@@ -34,15 +37,33 @@ export default class State {
     }
     // Stream of external API call events
     const externalCalls = new Subject()
+
+    // Interface to communicate side effects (in the Object case, to and from
+    // the data store)
     const drivers = {
-      Object: makeObjectDriver(dataStore, sources)
+      Object: makeObjectDriver(dataStore, sources),
+      External: function(outputs) {
+        externalObservable.next(outputs)
+      }
     }
-    // Starts drivers.Object with empty argument
-    const actions = intent(drivers.Object(), externalCalls.asObservable())
+
+    // Broadcasts events to external listeners
+    const externalObservable = new Subject()
+
+    // Pass data sources to setup reducers that transform each side effect
+    // intent to an output that would be applied to a sink (a data source that
+    // generates side effects).
+    
+    // Starts drivers.Object with empty argument. Triggers first side
+    // effect.
+    const actions = intent(drivers.Object(),
+                           externalCalls.asObservable(),
+                           externalObservable)
+
     const state$ = model(actions)
 
-    // Subscribes drivers to sinks
-    link(drivers, {Object: state$})
+    // Subscribes drivers to sinks. Event streams go live and become active.
+    link(drivers, state$)
 
     return {
       /**
@@ -63,7 +84,6 @@ export default class State {
        * Transition current state to next node using given transition.
        * @param {string} transition name of transition to use on the current
        * node
-       * @return {object} flow outcome if any exist, otherwise undefined
        */
       transition: transition => externalCalls.next({
         key: 'transition',
@@ -84,7 +104,15 @@ export default class State {
       replace: nodes => externalCalls.next({
         key: 'replace',
         value: nodes
-      })
+      }),
+
+      on: (eventName, callback) => {
+        externalObservable.subscribe(event => {
+          if (eventName == 'ready' && event.type == 'ready') {
+            callback(event)
+          }
+        })
+      }
     }
   }
 }
@@ -96,6 +124,7 @@ const transitionToPreviousState = ({current, history}) => {
 // Translate external data source inputs/events to actions on our models
 function intent(dataSource, externalCall) {
   return {
+    Object: {
     saveStartNode: dataSource.get('nodes')
       .map(({value}) => ({current: value.start}))
       .first(),
@@ -128,9 +157,45 @@ function intent(dataSource, externalCall) {
           current = transitions[transition]
           return {history, current}
         } else {
+          // TODO: Transition to previous state with resolver
           return transitionToPreviousState({current, history})
         }
       })
+      .mergeMap(willMergeDependencies(dataSource, 'nodes'))
+      .mergeMap(outputs => {
+        // Support async outcome resolvers
+        const {current, nodes} = outputs
+        const currentNode = nodes[current]
+        const props = currentNode.props
+
+        const OutcomeResolver = currentNode.resolver
+        if (typeof OutcomeResolver == 'function') {
+          const resolver = new OutcomeResolver()
+          // TODO: Handle outcome resolving errors
+          const futureResult = new Promise(resolve => {
+            resolver.then(outcome => {
+              // Trigger transition change again (continue to given outcome)
+              resolve({transition: outcome, ...outputs})
+            })
+          })
+          return Observable.fromPromise(futureResult)
+        } else {
+          return Observable.of(outputs)
+        }
+      })
+    },
+
+    External: {
+      // Broadcast to external listeners after the current node is updated
+      notifyPostTransition: dataSource.get('current')
+        .skip(1)
+        .map(mapValueStateToValue)
+        .mergeMap(willMergeDependencies(dataSource, 'nodes'))
+        .map(({current, nodes}) => {
+          const props = nodes[current].props
+          return {type: 'ready', props}
+      })
+    }
   }
 }
 
@@ -194,23 +259,15 @@ const validateAndSelectTransition = ({transition, current, nodes}) => {
 
 // Returns resulting state from actions.
 function model(actions) {
-  return Observable.merge(
-    ...Object::values(actions)
-  )
-}
-
-function dataStore(model$) {
-  // Save model data back to data store, which feeds back as a source
-}
-
-export class StateSink {
-
-}
-
-export class Validator {
-  constructor(stateConfig) {
+  let state$ = {}
+  for (const actionContainerKey in actions) {
+    state$[actionContainerKey] = Observable.merge(
+      ...Object::values(actions[actionContainerKey])
+    )
   }
+  return state$
 }
+
 // map external data -> data store
 // map data store change intent -> action
 // map action side effects -> data store

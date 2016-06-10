@@ -35,6 +35,19 @@ describe('Model', function() {
     onConfigReplace.should.be.calledTwice()
   })
 
+  it('transactions should only notify after a commit completes', () => {
+    const data = {prop: 'first', size: 'small'}
+    const model = new Model(data)
+    const onChange = spy(function() {
+      data.prop.should.equal('second')
+      data.size.should.equal('medium')
+    })
+    model.prop.skip(1).subscribe(onChange)
+    model.size.skip(1).subscribe(onChange)
+    model.commit({size: 'medium', prop: 'second'})
+    onChange.should.be.calledTwice()
+  })
+
   it('should return a property value via model.key.state.value', () => {
     const model = new Model({answer: 42})
     model.answer.state.value.should.equal(42)
@@ -42,6 +55,7 @@ describe('Model', function() {
 })
 
 describe('State', function() {
+  this.timeout(150)
   var state
   beforeEach(() => {
     state = State.create({
@@ -101,6 +115,31 @@ describe('State', function() {
     state._inspectData().current.should.equal('EmployeeList')
     state.previous()
     state._inspectData().current.should.equal('EmployeeList')
+  })
+
+  it('should support async transitions and pass state object as result',
+    done => {
+    state._inspectData().current.should.equal('EmployeeList')
+    let readyCount = 1
+    const handleReady = event => {
+      try {
+        if (readyCount == 1) {
+          state._inspectData().current.should.equal('EnterRunPayroll')
+        } else if (readyCount == 2) {
+          state._inspectData().current.should.equal('RunPayroll')
+          event.props.layout.should.equal('trowser')
+          done()
+        } else {
+          done(new Error('Incorrect ready count. Props: ' + event))
+        }
+        readyCount++
+      } catch(err) {
+        done(err)
+        throw err
+      }
+    }
+    state.on('ready', handleReady)
+    state.transition('Enter run payroll')
   })
 })
 

@@ -10,7 +10,12 @@ export default class Model {
    * subscribers to this Model instance.
    */
   constructor(data) {
+    this._committing = false
+    this._txEventQueue = []
     Object.keys(data).forEach(key => {
+      if (key == 'commit') {
+        throw new Error(`Model: 'commit' is a reserved property`)
+      }
       // Emits current value on subscription
       const subject = new BehaviorSubject({
         value: data[key],
@@ -26,7 +31,11 @@ export default class Model {
             return
           }
           data[key] = value
-          subject.next({value, prev, key})
+          if (this._committing) {
+            this._txEventQueue.push(() => subject.next({value, prev, key}))
+          } else {
+            subject.next({value, prev, key})
+          }
         },
         get() {
           // Proxy listener interface to subscribers
@@ -42,5 +51,22 @@ export default class Model {
         }
       })
     })
+  }
+
+  /**
+   * Save data to model as a transaction. No events are fired off until data has
+   * been commited and the transaction is complete.
+   * @param {object} dataTx data matching schema given on model construction
+   */
+  commit(dataTx) {
+    this._committing = true
+    if (dataTx && dataTx.commit) {
+      throw new Error(`Model: 'commit' is a reserved property`)
+    }
+    Object.assign(this, dataTx)
+    while (this._txEventQueue.length) {
+      this._txEventQueue.pop()()
+    }
+    this._committing = false
   }
 }
