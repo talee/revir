@@ -116,7 +116,7 @@ describe('State', function() {
     state._inspectData().current.should.equal('EmployeeList')
   })
 
-  it('should support async transitions and pass state object as result',
+  it('should support async transitions and pass state props to listeners',
     done => {
     state._inspectData().current.should.equal('EmployeeList')
     let readyCount = 1
@@ -139,6 +139,20 @@ describe('State', function() {
     }
     state.on('ready', handleReady)
     state.transition('Enter run payroll')
+  })
+
+  it('should pass state name to listeners', done => {
+    const handleReady = spy(({current}) => {
+      try {
+        current.should.equal('EditEmployee')
+        done()
+      } catch (err) {
+        done(err)
+      }
+    })
+    state.on('ready', handleReady)
+    state.transition('Edit employee')
+    handleReady.should.be.calledOnce()
   })
 })
 

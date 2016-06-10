@@ -193,7 +193,7 @@ function intent(dataSource, externalCall) {
         .mergeMap(willMergeDependencies(dataSource, 'nodes'))
         .map(({current, nodes}) => {
           const props = nodes[current].props
-          return {type: 'ready', props}
+          return {type: 'ready', current, props}
       })
     }
   }
