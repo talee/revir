@@ -22,6 +22,12 @@
     "url": "https://github.com/talee/revir/issues"
   },
   "homepage": "https://github.com/talee/revir#readme",
+  "browserify": {
+    "transform": [["babelify", {
+      "presets": ["es2015", "stage-2"],
+      "plugins": ["transform-function-bind"]
+    }]]
+  },
   "devDependencies": {
     "babel-core": "^6.9.1",
     "babel-eslint": "^6.0.4",
