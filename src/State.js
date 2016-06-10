@@ -107,8 +107,11 @@ export default class State {
       }),
 
       on: (eventName, callback) => {
-        externalObservable.subscribe(event => {
-          if (eventName == 'ready' && event.type == 'ready') {
+        return externalObservable.subscribe(event => {
+          const {type, stateType} = event
+          if (eventName == 'ready' &&
+              type == 'ready' &&
+              stateType != 'branch') {
             callback(event)
           }
         })
@@ -186,14 +189,16 @@ function intent(dataSource, externalCall) {
     },
 
     External: {
-      // Broadcast to external listeners after the current node is updated
+      // Broadcast to external listeners after the current node is updated.
+      // Resolver nodes are not broadcasted as 'ready' events.
       notifyPostTransition: dataSource.get('current')
         .skip(1)
         .map(mapValueStateToValue)
         .mergeMap(willMergeDependencies(dataSource, 'nodes'))
         .map(({current, nodes}) => {
           const props = nodes[current].props
-          return {type: 'ready', current, props}
+          const stateType = nodes[current].resolver ? 'branch' : 'state'
+          return {type: 'ready', stateType, current, props}
       })
     }
   }

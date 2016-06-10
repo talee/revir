@@ -119,25 +119,18 @@ describe('State', function() {
   it('should support async transitions and pass state props to listeners',
     done => {
     state._inspectData().current.should.equal('EmployeeList')
-    let readyCount = 1
     const handleReady = event => {
       try {
-        if (readyCount == 1) {
-          state._inspectData().current.should.equal('EnterRunPayroll')
-        } else if (readyCount == 2) {
-          state._inspectData().current.should.equal('RunPayroll')
-          event.props.layout.should.equal('trowser')
-          done()
-        } else {
-          done(new Error('Incorrect ready count. Props: ' + event))
-        }
-        readyCount++
+        state._inspectData().current.should.equal('RunPayroll')
+        event.props.layout.should.equal('trowser')
+        done()
       } catch(err) {
         done(err)
         throw err
       }
     }
     state.on('ready', handleReady)
+    // Transitions to EnterRunPayroll then RunPayroll
     state.transition('Enter run payroll')
   })
 
@@ -153,6 +146,38 @@ describe('State', function() {
     state.on('ready', handleReady)
     state.transition('Edit employee')
     handleReady.should.be.calledOnce()
+  })
+
+  it('should pass state type to listeners', done => {
+    const handleReadyA = spy(({stateType}) => {
+      try {
+        stateType.should.equal('state')
+      } catch (err) {
+        done(err)
+      }
+    })
+    let subscription = state.on('ready', handleReadyA)
+    state.transition('Add employee')
+    subscription.unsubscribe()
+
+    // Reset
+    state.transition('View employee list')
+    state._inspectData().current.should.equal('EmployeeList')
+
+    const handleReadyB = spy(({stateType}) => {
+      try {
+        // Branch nodes are not broadcasted
+        stateType.should.equal('state')
+        state._inspectData().current.should.equal('RunPayroll')
+        subscription.unsubscribe()
+        done()
+      } catch (err) {
+        done(err)
+      }
+    })
+    subscription = state.on('ready', handleReadyB)
+    state.transition('Enter run payroll')
+    handleReadyA.should.be.calledOnce()
   })
 })
 
