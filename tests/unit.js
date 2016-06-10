@@ -55,7 +55,6 @@ describe('Model', function() {
 })
 
 describe('State', function() {
-  this.timeout(150)
   var state
   beforeEach(() => {
     state = State.create({
