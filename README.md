@@ -63,6 +63,12 @@ renderers or routing.
 		// props would be {layout: 'modal'}
 	})
 
+Since transitions are async, error events are also broadcasted.
+
+	state.on('error', event => {
+		let error = event.error
+	})
+
 ### Branching
 
 Most of the time the app always transitions from state A to state B. However,
