@@ -132,8 +132,13 @@ const allEqual = (base, ...args) => {
   return true
 }
 
-const transitionToPreviousState = ({current, history}) => {
-  return ({current: history.pop() || current})
+const transitionToPreviousState = ({current, history, nodes}) => {
+  // Pop history if moving back resulted in a branch node until a
+  // state node is reached
+  do {
+    current = history.pop() || current
+  } while (nodes[current].resolver)
+  return {current, history, nodes}
 }
 
 // Translate external data source inputs/events to actions on our models
@@ -149,7 +154,7 @@ function intent(dataSource, externalCall) {
 
     previous: externalCall.filter(({key}) => key == 'previous')
       .map(() => ({}))
-      .mergeMap(willMergeDependencies(dataSource, 'current history'))
+      .mergeMap(willMergeDependencies(dataSource, 'current history nodes'))
       .map(transitionToPreviousState),
 
     _saveCurrent: externalCall.filter(({key}) => key == 'current')
@@ -169,19 +174,22 @@ function intent(dataSource, externalCall) {
           return Observable.of({error: result})
         }
         return Observable.of(result)
-          .mergeMap(willMergeDependencies(dataSource, 'current history'))
-          .map(({transition, transitions, forward, history, current}) => {
+          .mergeMap(willMergeDependencies(dataSource, 'current history nodes'))
+          .map(({transition, transitions, forward, current, history, nodes}) => {
+            // Add current state to history and set incoming state to current
             if (forward) {
-              // TODO: Potentially avoid history modification at this step?
-              history.push(current)
+              // Don't save resolver nodes in history to allow simpler
+              // transitions back
+              if (!nodes[current].resolver) {
+                // TODO: Potentially avoid history side effect at this step?
+                history.push(current)
+              }
               current = transitions[transition]
-              return {history, current}
+              return {history, current, nodes}
             } else {
-              // TODO: Transition to previous state with resolver
-              return transitionToPreviousState({current, history})
+              return transitionToPreviousState({current, history, nodes})
             }
           })
-          .mergeMap(willMergeDependencies(dataSource, 'nodes'))
           .mergeMap(outputs => {
             // Support async outcome resolvers
             const {current, nodes} = outputs

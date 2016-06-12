@@ -8,6 +8,15 @@ import states from './states'
 import Model from '../src/Model'
 
 const expect = should
+function reportTo(done) {
+  return function(throwable) {
+    try {
+      throwable()
+    } catch (err) {
+      done(err)
+    }
+  }
+}
 
 describe('Model', function() {
   it('should notify subscribers of changes to its properties', () => {
@@ -181,7 +190,7 @@ describe('State', function() {
   })
 
  
-  it('should notify listeners of errors and still allow transitions after' +
+  it('should notify listeners of errors and still allow transitions after ' +
       'throwing an error', () => {
     state.transition('Add employee')
     const handleError = spy(({type, error}) => {
@@ -197,7 +206,32 @@ describe('State', function() {
     state._inspectData().current.should.equal('W4')
   })
 
-  it.skip('should not store resolver nodes in history', () => {
+  it('should not store branch nodes in history', done => {
+    // Setup
+    const report = reportTo(done)
+    state.on('error', ({error}) => done(error))
+    state.transition('View tax center')
+
+    const handleRunPayroll = spy(({current}) => {
+      report(() => state._inspectData().current.should.equal('RunPayroll'))
+      runPayrollSub.unsubscribe()
+      testTransitionToPrevious()
+    })
+    let runPayrollSub = state.on('ready', handleRunPayroll)
+    state.transition('Enter run payroll')
+
+    const handlePrevious = spy(({current}) => {
+      report(() => {
+        state._inspectData().current.should.equal('TaxCenter')
+        done()
+      })
+    })
+    function testTransitionToPrevious() {
+      state.on('ready', handlePrevious)
+      state.previous()
+
+      handleRunPayroll.should.be.calledOnce()
+    }
   })
 })
 

@@ -44,6 +44,7 @@ export default {
       'Add employee': 'AddEmployee',
       'Edit employee': 'EditEmployee',
       'Run payroll': 'RunPayroll',
+      'View tax center': 'TaxCenter',
       'Enter run payroll': 'EnterRunPayroll'
     },
   },
@@ -60,6 +61,13 @@ export default {
   },
 
   W4: {
+  },
+
+  TaxCenter: {
+    transitions: {
+      'Enter run payroll': 'EnterRunPayroll',
+      'View employee list': 'EmployeeList'
+    }
   },
 
   EnterRunPayroll: {
