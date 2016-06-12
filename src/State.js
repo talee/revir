@@ -33,7 +33,9 @@ export default class State {
       // Complete graph of states
       nodes: null,
       // Previous states
-      history: []
+      history: [],
+      // Last error
+      error: null
     }
     // Stream of external API call events
     const externalCalls = new Subject()
@@ -109,15 +111,25 @@ export default class State {
       on: (eventName, callback) => {
         return externalObservable.subscribe(event => {
           const {type, stateType} = event
-          if (eventName == 'ready' &&
-              type == 'ready' &&
-              stateType != 'branch') {
-            callback(event)
+          if (allEqual('ready', eventName, type) && stateType != 'branch') {
+            return callback(event)
+          }
+          if (allEqual('error', eventName, type) && stateType != 'branch') {
+            return callback(event)
           }
         })
       }
     }
   }
+}
+
+const allEqual = (base, ...args) => {
+  for (let arg of args) {
+    if (arg != base) {
+      return false
+    }
+  }
+  return true
 }
 
 const transitionToPreviousState = ({current, history}) => {
@@ -152,39 +164,45 @@ function intent(dataSource, externalCall) {
       .map(transition => mapToValues({transition}))
       .mergeMap(willMergeDependencies(dataSource, 'current nodes'))
       .map(validateAndSelectTransition)
-      .mergeMap(willMergeDependencies(dataSource, 'current history'))
-      .map(({transition, transitions, forward, history, current}) => {
-        if (forward) {
-          // TODO: Potentially avoid history modification at this step?
-          history.push(current)
-          current = transitions[transition]
-          return {history, current}
-        } else {
-          // TODO: Transition to previous state with resolver
-          return transitionToPreviousState({current, history})
+      .mergeMap(result => {
+        if (result instanceof Error) {
+          return Observable.of({error: result})
         }
-      })
-      .mergeMap(willMergeDependencies(dataSource, 'nodes'))
-      .mergeMap(outputs => {
-        // Support async outcome resolvers
-        const {current, nodes} = outputs
-        const currentNode = nodes[current]
-        const props = currentNode.props
-
-        const OutcomeResolver = currentNode.resolver
-        if (typeof OutcomeResolver == 'function') {
-          const resolver = new OutcomeResolver()
-          // TODO: Handle outcome resolving errors
-          const futureResult = new Promise(resolve => {
-            resolver.then(outcome => {
-              // Trigger transition change again (continue to given outcome)
-              resolve({transition: outcome, ...outputs})
-            })
+        return Observable.of(result)
+          .mergeMap(willMergeDependencies(dataSource, 'current history'))
+          .map(({transition, transitions, forward, history, current}) => {
+            if (forward) {
+              // TODO: Potentially avoid history modification at this step?
+              history.push(current)
+              current = transitions[transition]
+              return {history, current}
+            } else {
+              // TODO: Transition to previous state with resolver
+              return transitionToPreviousState({current, history})
+            }
           })
-          return Observable.fromPromise(futureResult)
-        } else {
-          return Observable.of(outputs)
-        }
+          .mergeMap(willMergeDependencies(dataSource, 'nodes'))
+          .mergeMap(outputs => {
+            // Support async outcome resolvers
+            const {current, nodes} = outputs
+            const currentNode = nodes[current]
+            const props = currentNode.props
+
+            const OutcomeResolver = currentNode.resolver
+            if (typeof OutcomeResolver == 'function') {
+              const resolver = new OutcomeResolver()
+              // TODO: Handle outcome resolving errors
+              const futureResult = new Promise(resolve => {
+                resolver.then(outcome => {
+                  // Trigger transition change again (continue to given outcome)
+                  resolve({transition: outcome, ...outputs})
+                })
+              })
+              return Observable.fromPromise(futureResult)
+            } else {
+              return Observable.of(outputs)
+            }
+          })
       })
     },
 
@@ -199,7 +217,14 @@ function intent(dataSource, externalCall) {
           const props = nodes[current].props
           const stateType = nodes[current].resolver ? 'branch' : 'state'
           return {type: 'ready', stateType, current, props}
-      })
+      }),
+
+      notifyError: dataSource.get('error')
+        .skip(1)
+        .map(mapValueStateToValue)
+        .map(({error}) => {
+          return {type: 'error', error}
+        })
     }
   }
 }
@@ -207,9 +232,7 @@ function intent(dataSource, externalCall) {
 // Link each driver setup with actions back to each driver's sink.
 const link = (drivers, sinks) => {
   for (const key in drivers) {
-    sinks[key].subscribe(dataOutput => {
-      drivers[key](dataOutput)
-    })
+    sinks[key].subscribe(dataOutput => drivers[key](dataOutput))
   }
 }
 
@@ -238,7 +261,7 @@ const validateAndSelectTransition = ({transition, current, nodes}) => {
   let transitions = nodes[current].transitions
   if (!transitions) {
     if (transition) {
-      throw new Error(`State: No transitions on current state ` +
+      return new Error(`State: No transitions on current state ` +
                       `${current}. Transition given: '${transition}'`)
     } else {
       // Transition back in history as the current node is an end node
@@ -252,11 +275,11 @@ const validateAndSelectTransition = ({transition, current, nodes}) => {
   }
   const nodeName = transitions[transition]
   if (!nodeName) {
-    throw new Error(`State: Transition '${transition}' not available at ` +
+    return new Error(`State: Transition '${transition}' not available at ` +
                     `current state '${current}'`)
   }
   if (!nodes[nodeName]) {
-    throw new Error(`State: Node '${nodeName}' not found on transition ` +
+    return new Error(`State: Node '${nodeName}' not found on transition ` +
                     `'${transition}' at current state '${current}'`)
   }
   return {transition, transitions, forward: true}

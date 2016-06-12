@@ -179,6 +179,26 @@ describe('State', function() {
     state.transition('Enter run payroll')
     handleReadyA.should.be.calledOnce()
   })
+
+ 
+  it('should notify listeners of errors and still allow transitions after' +
+      'throwing an error', () => {
+    state.transition('Add employee')
+    const handleError = spy(({type, error}) => {
+      type.should.equal('error')
+      error.should.match({message: /not available at current state/})
+    })
+    state.on('error', handleError)
+    state.transition('Edit employee')
+    handleError.should.be.calledOnce()
+
+    // Check state hasn't unexpectedly reset to the initial state
+    state.transition('Edit W-4')
+    state._inspectData().current.should.equal('W4')
+  })
+
+  it.skip('should not store resolver nodes in history', () => {
+  })
 })
 
 describe('States', function() {
