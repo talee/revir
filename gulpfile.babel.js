@@ -68,7 +68,7 @@ const tasks = {
 
   copy() {
     // Copy test page to dist
-    return gulp.src('tests/index.html')
+    return gulp.src('test/index.html')
     .pipe(gulp.dest('dist/'))
   },
 
@@ -94,7 +94,7 @@ const tasks = {
     return gulp.src([
         'gulpfile.babel.js',
         'src/**/*.js',
-        'tests/**/*.js'
+        'test/**/*.js'
       ])
       .pipe(eslint())
       .pipe(eslint.format())
@@ -103,7 +103,7 @@ const tasks = {
 
   test() {
     // No need to read file contents as mocha needs file paths only
-    return gulp.src('tests/*.js', {read: false})
+    return gulp.src('test/*.js', {read: false})
     .pipe(mocha())
     // Gulp watch requires end event to prevent watch from ending process/task
     .on('error', function(err) {
@@ -134,7 +134,7 @@ Object.keys(tasks)
 
 gulp.task('default', () => {
   bundler.plugin(watchify)
-  gulp.watch('tests/*.js', ['test'])
+  gulp.watch('test/*.js', ['test'])
   tasks.clean().then(() => {
     tasks.copy()
     tasks.bundle()
@@ -154,7 +154,7 @@ gulp.task('test-watch', function() {
   }).on('end', () => {
     tasks.test()
   })
-  gulp.watch(['src/**/*.js', 'tests/**/*.js'], ['lintjs', 'test'])
+  gulp.watch(['src/**/*.js', 'test/**/*.js'], ['lintjs', 'test'])
 })
 
 // ----------------------------------------
