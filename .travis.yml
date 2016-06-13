@@ -6,7 +6,7 @@ node_js:
     - "4"
 install:
     - npm update
-script: npm run build test
+script: npm run build && npm run test
 after_success: npm run coverage
 cache:
     directories:

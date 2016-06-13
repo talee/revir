@@ -2,6 +2,7 @@
 
 [![Build Status](https://img.shields.io/travis/talee/revir.svg?style=flat-square)](https://travis-ci.org/talee/revir)
 [![Build Dependencies](https://img.shields.io/david/talee/revir.svg?style=flat-square)](https://david-dm.org/talee/revir)
+[![Coveralls](https://img.shields.io/coveralls/jekyll/jekyll.svg?maxAge=2592000)]()
 
 Experimental state/flow manager with async branching, subflows, and history.
 
