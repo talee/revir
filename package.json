@@ -63,6 +63,7 @@
     "jscs": "^3.0.3",
     "loglevel": "^1.4.0",
     "map-stream": "0.0.6",
+    "mocha": "^2.5.3",
     "nyc": "^6.4.4",
     "should": "^8.4.0",
     "should-sinon": "0.0.5",
