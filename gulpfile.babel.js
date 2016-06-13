@@ -143,7 +143,6 @@ gulp.task('default', () => {
   gutil.log('Watching for changes...')
 })
 gulp.task('build', done => {
-  tasks.test().on('error', err => tasks.die(1))
   tasks.lintjs().on('error', err => tasks.die(1))
   tasks.browserify().on('error', err => tasks.die(1))
 })
