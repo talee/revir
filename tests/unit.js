@@ -95,7 +95,7 @@ describe('State', function() {
   })
 
   it('transitions to next state via transition reference string', () => {
-    state._current('EditEmployee')
+    state.startAt('EditEmployee')
     state.transition('Edit W-4')
     state._inspectData().current.should.equal('W4')
   })
@@ -231,6 +231,28 @@ describe('State', function() {
       state.previous()
 
       handleRunPayroll.should.be.calledOnce()
+    }
+  })
+
+  it('should transition normally after jumping to a different state',
+      done => {
+    let runPayrollSub = state.on('ready', ({current}) => {
+      state._inspectData().current.should.equal('TaxCenter')
+      runPayrollSub.unsubscribe()
+      testTransitionBack()
+    })
+    state.startAt('EnterPayTaxes')
+
+    function testTransitionBack() {
+      state.on('ready', ({current}) => {
+        try {
+          state._inspectData().current.should.equal('RunPayroll')
+          done()
+        } catch (err) {
+          done(err)
+        }
+      })
+      state.transition('Enter run payroll')
     }
   })
 })

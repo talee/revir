@@ -122,6 +122,17 @@ transition string. The transition string is then used the same way as if
 
 	// State is now FirstTimeAddEmployee
 
+### Jumps
+
+Transitions make it clear what states the app can continue to. However,
+sometimes the app needs to imperatively signal the state to start at e.g. when
+the user navigates to a particular URL. Jumps allow the app to pass the node
+name to go to. Jumps should NOT be used to transition between states as this
+makes the flow unclear.
+
+	state.startAt('TaxCenter')
+
+The node specified can be a branch node to check permissions or valid state etc.
 
 ### Reference
 

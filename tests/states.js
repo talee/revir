@@ -78,6 +78,14 @@ export default {
     }
   },
 
+  EnterPayTaxes: {
+    resolver: RunPayrollResolver,
+    transitions: {
+      'No taxes': 'EmployeeList',
+      'Ready': 'TaxCenter'
+    }
+  },
+
   RunPayroll: {
     props: {
       layout: 'trowser'

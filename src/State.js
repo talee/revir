@@ -75,11 +75,11 @@ export default class State {
       _inspectData: () => dataStore,
 
       /**
-       * Support jumps for testing.
+       * Jumps to the state directly using the node name.
        */
-      _current: current => externalCalls.next({
+      startAt: nodeName => externalCalls.next({
         key: 'current',
-        value: current,
+        value: nodeName,
       }),
 
       /**
@@ -141,6 +141,38 @@ const transitionToPreviousState = ({current, history, nodes}) => {
   return {current, history, nodes}
 }
 
+const addToHistory = ({current, history, nodes}) => {
+  // Don't save resolver nodes in history to allow simpler
+  // transitions back
+  if (!nodes[current].resolver) {
+    // TODO: Potentially avoid history side effect at this step?
+    history.push(current)
+  }
+  return {current, history, nodes}
+}
+
+const transitionByResolver = outputs => {
+  // Support async outcome resolvers
+  const {current, nodes} = outputs
+  const currentNode = nodes[current]
+  const props = currentNode.props
+
+  const OutcomeResolver = currentNode.resolver
+  if (typeof OutcomeResolver == 'function') {
+    const resolver = new OutcomeResolver()
+    // TODO: Handle outcome resolving errors
+    const futureResult = new Promise(resolve => {
+      resolver.then(outcome => {
+        // Trigger transition change again (continue to given outcome)
+        resolve({transition: outcome, ...outputs})
+      })
+    })
+    return Observable.fromPromise(futureResult)
+  } else {
+    return Observable.of(outputs)
+  }
+}
+
 // Translate external data source inputs/events to actions on our models
 function intent(dataSource, externalCall) {
   return {
@@ -158,7 +190,13 @@ function intent(dataSource, externalCall) {
       .map(transitionToPreviousState),
 
     _saveCurrent: externalCall.filter(({key}) => key == 'current')
-      .map(mapValueStateToValue),
+      .map(({value}) => ({incoming: value}))
+      .mergeMap(willMergeDependencies(dataSource, 'current history nodes'))
+      .map(({history, nodes, current, incoming}) => {
+        addToHistory({current, history, nodes})
+        return {current: incoming, history, nodes}
+      })
+      .mergeMap(transitionByResolver),
 
     saveNodes: externalCall.filter(({key}) => key == 'replace')
       .map(({value}) => ({nodes: value})),
@@ -178,39 +216,14 @@ function intent(dataSource, externalCall) {
           .map(({transition, transitions, forward, current, history, nodes}) => {
             // Add current state to history and set incoming state to current
             if (forward) {
-              // Don't save resolver nodes in history to allow simpler
-              // transitions back
-              if (!nodes[current].resolver) {
-                // TODO: Potentially avoid history side effect at this step?
-                history.push(current)
-              }
+              addToHistory({current, history, nodes})
               current = transitions[transition]
               return {history, current, nodes}
             } else {
               return transitionToPreviousState({current, history, nodes})
             }
           })
-          .mergeMap(outputs => {
-            // Support async outcome resolvers
-            const {current, nodes} = outputs
-            const currentNode = nodes[current]
-            const props = currentNode.props
-
-            const OutcomeResolver = currentNode.resolver
-            if (typeof OutcomeResolver == 'function') {
-              const resolver = new OutcomeResolver()
-              // TODO: Handle outcome resolving errors
-              const futureResult = new Promise(resolve => {
-                resolver.then(outcome => {
-                  // Trigger transition change again (continue to given outcome)
-                  resolve({transition: outcome, ...outputs})
-                })
-              })
-              return Observable.fromPromise(futureResult)
-            } else {
-              return Observable.of(outputs)
-            }
-          })
+          .mergeMap(transitionByResolver)
       })
     },
 
