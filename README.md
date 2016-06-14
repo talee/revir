@@ -6,6 +6,23 @@
 
 Experimental state/flow manager with async branching, subflows, and history.
 
+## Install
+
+	npm install --save revir
+
+Revir is written in ES6 modules so the preferred way of import is:
+
+	import Revir from 'revir'
+
+Alternatively, since it's a npm package:
+
+	var Revir = require('revir').default
+
+Babel would be needed for compilation with your app. Or you can use `babel-node`
+for trying it out on the fly.
+
+Supported and tested in both Node.js and Babel supported browser environments.
+
 ## Interface
 
 ### Setup all possible states
