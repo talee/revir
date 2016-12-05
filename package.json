@@ -1,6 +1,6 @@
 {
   "name": "revir",
-  "version": "1.0.1-alpha",
+  "version": "1.0.2-alpha",
   "description": "State/flow manager with async branching, subflows, and history",
   "main": "src/Revir.js",
   "scripts": {
