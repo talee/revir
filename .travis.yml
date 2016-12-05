@@ -3,7 +3,8 @@ sudo: false
 language: node_js
 node_js:
     - "node"
-    - "4"
+    - 6
+    - 4
 install:
     - npm update
 script: npm run build && npm run test
